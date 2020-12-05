@@ -26,15 +26,57 @@ dataset = pd.merge(dataset_input, dataset_popolazione, how = 'left', on = ["deno
 dataset['casi_per_100000_abitanti'] = dataset['totale_casi'] / dataset['abitanti']* 100000.
 dataset['morti_per_100000_abitanti'] = dataset['deceduti'] / dataset['abitanti']* 100000.
 
+
+
 numero_regioni = (len(set(dataset['denominazione_regione'])))
 print('numero delle regioni: ', numero_regioni)
 dfs = {'df_regione_code_' + str(i):dataset[dataset['codice_regione']== i] for i in range(1, numero_regioni+1)}
 
 date = pd.to_datetime(dfs['df_regione_code_1']['data'], format='%Y-%m-%d').dt.date
 
+X_italy_time_series = dataset.groupby(['data'], sort=False).agg({'terapia_intensiva':'sum',
+                                                                            'totale_ospedalizzati':'sum',
+                                                                            'totale_positivi':'sum',
+                                                                            'nuovi_positivi':'sum',
+                                                                            'dimessi_guariti':'sum',
+                                                                            'deceduti':'sum',
+                                                                            'totale_casi':'sum',
+                                                                            'tamponi':'sum',
+                                                                            'casi_testati':'sum',
+                                                                            'abitanti':'sum'})
+
+X_italy_time_series['deceduti_giornalieri'] = X_italy_time_series['deceduti'].diff(+1)
+X_italy_time_series['tamponi_giornalieri'] = X_italy_time_series['tamponi'].diff(+1)
+
+# Plots for national data
+fig = plt.figure(figsize=(25,10))
+fig.suptitle('valori nazionali')
+plt.subplot(321)
+plt.plot(date,X_italy_time_series.iloc[:,3])
+plt.title(X_italy_time_series.columns[3])
+plt.subplot(322)
+plt.plot(date,X_italy_time_series.iloc[:,5])
+plt.title(X_italy_time_series.columns[5])
+plt.subplot(323)
+plt.plot(date,X_italy_time_series.iloc[:,6])
+plt.title(X_italy_time_series.columns[6])    
+plt.subplot(324)
+plt.plot(date,X_italy_time_series.iloc[:,7])
+plt.title(X_italy_time_series.columns[7])    
+plt.subplot(325)
+plt.plot(date,X_italy_time_series['deceduti_giornalieri'])
+plt.title('deceduti_giornalieri')
+plt.subplot(326)
+plt.plot(date,X_italy_time_series.iloc[:,3]/X_italy_time_series['tamponi_giornalieri'])
+plt.title('positivity ratio')
+
+plt.savefig("valori_nazionali.png")
+plt.show()
+
 region_list = []
 last_daily_test = []
 
+# Plots for regional data
 for i in range(numero_regioni):
     name_region = 'df_regione_code_' + str(i+1)
     region_list.append(name_region)
@@ -44,43 +86,44 @@ for i in range(numero_regioni):
     deceduti_diff = np.diff(dfs[name_region]['deceduti'])
     deceduti_diff = np.insert(deceduti_diff, 0, 0., axis=0)
     last_daily_test.append([tamp_diff[-1], i+1])
-
-    # fig = plt.figure(figsize=(25,10))
-    # fig.suptitle('regione '+str(dfs[name_region].iloc[1,3]))
-    # plt.subplot(331)
-    # plt.plot(date,dfs[name_region].iloc[:,12])
-    # plt.title(dfs[name_region].columns[12])
-    # plt.subplot(332)
-    # plt.plot(date,dfs[name_region].iloc[:,17])
-    # plt.title(dfs[name_region].columns[17])
-    # plt.subplot(336)
-    # plt.plot(date,dfs[name_region].iloc[:,-1])
-    # plt.title(dfs[name_region].columns[-1])    
-    # plt.subplot(333)
-    # plt.plot(date,dfs[name_region].iloc[:,-2])
-    # plt.title(dfs[name_region].columns[-2])    
-    # plt.subplot(334)
-    # plt.plot(date,deceduti_diff)
-    # plt.title('deceduti_giornalieri')
-    # plt.subplot(335)
-    # plt.plot(date,dfs[name_region].iloc[:,14])
-    # plt.title(dfs[name_region].columns[14])
-    # plt.subplot(337)
-    # plt.plot(date,tamp_diff)
-    # plt.title('tamponi_giornalieri')
-    # plt.subplot(338)
-    # plt.plot(date,dfs[name_region]['nuovi_positivi']/tamp_diff)
-    # plt.ylim(0, 1)
-    # plt.title('positive ratio')
-    # plt.savefig("regione_{y}.png".format(y=str(dfs[name_region].iloc[1,3])))
-    # plt.show()
+    
+    fig = plt.figure(figsize=(25,10))
+    fig.suptitle('regione '+str(dfs[name_region].iloc[1,3]))
+    plt.subplot(331)
+    plt.plot(date,dfs[name_region].iloc[:,12])
+    plt.title(dfs[name_region].columns[12])
+    plt.subplot(332)
+    plt.plot(date,dfs[name_region].iloc[:,17])
+    plt.title(dfs[name_region].columns[17])
+    plt.subplot(336)
+    plt.plot(date,dfs[name_region].iloc[:,-1])
+    plt.title(dfs[name_region].columns[-1])    
+    plt.subplot(333)
+    plt.plot(date,dfs[name_region].iloc[:,-2])
+    plt.title(dfs[name_region].columns[-2])    
+    plt.subplot(334)
+    plt.plot(date,deceduti_diff)
+    plt.title('deceduti_giornalieri')
+    plt.subplot(335)
+    plt.plot(date,dfs[name_region].iloc[:,14])
+    plt.title(dfs[name_region].columns[14])
+    plt.subplot(337)
+    plt.plot(date,tamp_diff)
+    plt.title('tamponi_giornalieri')
+    plt.subplot(338)
+    plt.plot(date,dfs[name_region]['nuovi_positivi']/tamp_diff)
+    plt.ylim(0, 1)
+    plt.title('positive ratio')
+    plt.savefig("regione_{y}.png".format(y=str(dfs[name_region].iloc[1,3])))
+    plt.show()
     
 df_last_daily = pd.DataFrame(last_daily_test, columns=('daily_test', 'codice_regione'))
-X_last_update3 = dataset[-21:]
-X_last_update3 = pd.merge(X_last_update3, df_last_daily, how = 'inner', on = 'codice_regione')
+X_last_update_regions = dataset[-21:]
 
-X_last_update3['codice_regione'] = X_last_update3['codice_regione'].replace([21],4)
-X_last_update3 = X_last_update3.groupby(['codice_regione'], sort=False).agg({'terapia_intensiva':'sum',
+# Merge P.A. Bolzano and P.A. Trento, because the map has only the whole region
+X_last_update_regions = pd.merge(X_last_update_regions, df_last_daily, how = 'inner', on = 'codice_regione')
+X_last_update_regions['codice_regione'] = X_last_update_regions['codice_regione'].replace([21],4)
+X_last_update_regions = X_last_update_regions.groupby(['codice_regione'], sort=False).agg({'terapia_intensiva':'sum',
                                                                             'totale_ospedalizzati':'sum',
                                                                             'totale_positivi':'sum',
                                                                             'nuovi_positivi':'sum',
@@ -92,27 +135,27 @@ X_last_update3 = X_last_update3.groupby(['codice_regione'], sort=False).agg({'te
                                                                             'abitanti':'sum',
                                                                             'daily_test':'sum',
                                                                             'denominazione_regione': ' '.join})
+X_last_update_regions['denominazione_regione'] = X_last_update_regions['denominazione_regione'].replace(['P.A. Bolzano P.A. Trento'],'Trentino-Alto Adige')
 
-X_last_update3['denominazione_regione'] = X_last_update3['denominazione_regione'].replace(['P.A. Bolzano P.A. Trento'],'Trentino-Alto Adige')
-X_last_update3['casi_per_100000_abitanti'] = X_last_update3['totale_casi'] / X_last_update3['abitanti']* 100000.
-X_last_update3['morti_per_100000_abitanti'] = X_last_update3['deceduti'] / X_last_update3['abitanti']* 100000.
-# print('fino a qui fungeeeee!!!')
-X_last_update3['positivity_rate'] = X_last_update3['nuovi_positivi'] / X_last_update3['daily_test']
+# Coloured maps with index per 100k population
+X_last_update_regions['casi_per_100000_abitanti'] = X_last_update_regions['totale_casi'] / X_last_update_regions['abitanti']* 100000.
+X_last_update_regions['morti_per_100000_abitanti'] = X_last_update_regions['deceduti'] / X_last_update_regions['abitanti']* 100000.
+X_last_update_regions['positivity_rate'] = X_last_update_regions['nuovi_positivi'] / X_last_update_regions['daily_test']
 
 # url1 = 'https://gist.githubusercontent.com/datajournalism-it/48e29e7c87dca7eb1d29/raw/2636aeef92ba0770a073424853f37690064eb0ea/regioni.geojson'
 region_geo = '/home/fede/Desktop/corona-virus-python/regioni.geojson'
 my_map = folium.Map(location=[41.88, 12.48], zoom_start=5.5)
-folium.Choropleth(geo_data = region_geo, data = X_last_update3, columns=['denominazione_regione', 'totale_casi'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='totale casi').add_to(my_map)   
+folium.Choropleth(geo_data = region_geo, data = X_last_update_regions, columns=['denominazione_regione', 'totale_casi'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='totale casi').add_to(my_map)   
 my_map.save('casi_totali.html')
 
 my_map1 = folium.Map(location=[41.88, 12.48], zoom_start=5.5)
-folium.Choropleth(geo_data = region_geo, data = X_last_update3, columns=['denominazione_regione', 'morti_per_100000_abitanti'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='morti_per_100000_abitanti').add_to(my_map1)   
+folium.Choropleth(geo_data = region_geo, data = X_last_update_regions, columns=['denominazione_regione', 'morti_per_100000_abitanti'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='morti_per_100000_abitanti').add_to(my_map1)   
 my_map1.save('morti_per_100000_abitanti.html')
 
 my_map2 = folium.Map(location=[41.88, 12.48], zoom_start=5.5)
-folium.Choropleth(geo_data = region_geo, data = X_last_update3, columns=['denominazione_regione', 'casi_per_100000_abitanti'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='casi_per_100000_abitanti').add_to(my_map2)   
+folium.Choropleth(geo_data = region_geo, data = X_last_update_regions, columns=['denominazione_regione', 'casi_per_100000_abitanti'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='casi_per_100000_abitanti').add_to(my_map2)   
 my_map2.save('casi_per_100000_abitanti.html')
 
 my_map3 = folium.Map(location=[41.88, 12.48], zoom_start=5.5)
-folium.Choropleth(geo_data = region_geo, data = X_last_update3, columns=['denominazione_regione', 'positivity_rate'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='positivity rate for the last update').add_to(my_map3)   
+folium.Choropleth(geo_data = region_geo, data = X_last_update_regions, columns=['denominazione_regione', 'positivity_rate'], key_on='feature.properties.NOME_REG', nan_fill_color='white', fill_color='YlGnBu', fill_opacity=0.7, line_opacity=0.2, legend_name='positivity rate for the last update').add_to(my_map3)   
 my_map3.save('positivity_rate.html')
