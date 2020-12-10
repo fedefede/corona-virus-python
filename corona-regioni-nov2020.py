@@ -163,6 +163,7 @@ def make_map(df_to_map, column_to_map, legend_name):
     
 make_map(X_last_update_regions, 'totale_casi', 'numero totale di casi [da inizio pandemia]')    
 make_map(X_last_update_regions, 'morti_per_100000_abitanti', 'morti per 100000 abitanti [da inizio pandemia]')    
-make_map(X_last_update_regions, 'positivity_rate', 'positività [%%] (del giorno %s)' % last_day)    
+make_map(X_last_update_regions, 'positivity_rate', 'positività [%%] (del giorno %s)' % last_day)   
+print('fine') 
 
 
